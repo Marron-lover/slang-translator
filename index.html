@@ -212,6 +212,7 @@
       }
     }
   </style>
+    /* Supabase CDN will be added below */
 </head>
 <body>
   <div class="container">
@@ -236,10 +237,12 @@
     </form>
   </div>
 
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     let currentLang = 'zh'; // 'zh' or 'en'
 
-    // slangDict will be loaded from localStorage if present
+    // slangDict will be loaded from Supabase if present
     let slangDict = {
       "😭": { zh: "伤心或笑到哭", en: "Sad or laughing until crying" },
       "💅": { zh: "自信、不在乎他人看法", en: "Confident, don't care about others' opinions" },
@@ -390,33 +393,31 @@
 
     function translateText() {
       const inputText = document.getElementById("input").value;
-      // 排序词条，长的优先
+      const inputArray = Array.from(inputText); // emoji-safe split
       const keys = Object.keys(slangDict).sort((a, b) => b.length - a.length);
       let result = "";
       let i = 0;
-      while (i < inputText.length) {
+      while (i < inputArray.length) {
         let matched = false;
         for (const term of keys) {
-          const inputSubstr = inputText.substr(i, term.length);
-          if (inputSubstr.toLowerCase() === term.toLowerCase()) {
-            const explanation = slangDict[term][currentLang];
-            // 确保HTML安全的解释文本
-            const safeExplanation = explanation.replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-            // 点击弹窗解释
-            const tooltipHTML = `<span class='tooltip' data-explanation="${encodeURIComponent(explanation)}" tabindex="0">${inputSubstr}</span>`;
+          const termArray = Array.from(term);
+          const segment = inputArray.slice(i, i + termArray.length).join('');
+          if (segment.toLowerCase() === term.toLowerCase()) {
+            const explanation = slangDict[term.toLowerCase()]?.[currentLang];
+            const safeExplanation = explanation ? explanation.replace(/"/g, '&quot;').replace(/'/g, '&#x27;') : "";
+            const tooltipHTML = `<span class='tooltip' data-explanation="${encodeURIComponent(explanation)}" tabindex="0">${segment}</span>`;
             result += tooltipHTML;
-            i += term.length;
+            i += termArray.length;
             matched = true;
             break;
           }
         }
         if (!matched) {
-          result += inputText[i];
+          result += inputArray[i];
           i++;
         }
       }
       document.getElementById("output").innerHTML = result;
-      // 绑定点击事件
       bindTooltipClick();
     }
 
@@ -539,7 +540,13 @@
     const addTermForm = document.getElementById('addTermForm');
     const addTermMessage = document.getElementById('addTermMessage');
 
-    addTermForm.addEventListener('submit', (e) => {
+    // Supabase client initialization
+    const supabase = window.supabase.createClient(
+      "https://fqpnbiprehoglqrkhzui.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxcG5iaXByZWhvZ2xxcmtoenVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNzQ2NjQsImV4cCI6MjA2Njk1MDY2NH0.aFZmiUC0oSYWiKtbVAzQ_6iW4DjYFnSIzIWABdr5HDs"
+    );
+
+    addTermForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const lang = currentLang;
       const newTerm = document.getElementById('newTerm').value.trim();
@@ -562,41 +569,53 @@
         return;
       }
 
-      // Add or update the term in slangDict
-      slangDict[newTerm] = { zh: newExplanationZh, en: newExplanationEn };
-      saveSlangDict();
+      const termLower = newTerm.toLowerCase();
+      slangDict[termLower] = { zh: newExplanationZh, en: newExplanationEn };
+
+      const success = await saveSlangDict(newTerm, newExplanationZh, newExplanationEn);
+      if (!success) {
+        addTermMessage.style.color = 'red';
+        addTermMessage.textContent = '保存到云端失败，请稍后重试。';
+        return;
+      }
 
       addTermMessage.style.color = '#1ca51c';
       addTermMessage.textContent = i18n[lang].addTermMsgOK(newTerm);
 
-      // Clear inputs
       addTermForm.reset();
-
-      // Re-translate text to include new term if present
+      await loadSlangDict();
       translateText();
     });
 
-    // localStorage 支持
-    function saveSlangDict() {
-      try {
-        localStorage.setItem('slangDict', JSON.stringify(slangDict));
-      } catch (e) {}
+    // Supabase: 拉取词典
+    async function loadSlangDict() {
+      const { data, error } = await supabase.from("slang_terms").select("*");
+      if (error) {
+        console.error("加载词典失败", error);
+        updateLangUI();
+        return;
+      }
+      data.forEach(item => {
+        slangDict[item.term] = { zh: item.zh, en: item.en };
+      });
+      updateLangUI();
+      translateText();
     }
-    function loadSlangDict() {
-      try {
-        const data = localStorage.getItem('slangDict');
-        if (data) {
-          const userDict = JSON.parse(data);
-          if (userDict && typeof userDict === 'object') {
-            for (const k in userDict) {
-              slangDict[k] = userDict[k];
-            }
-          }
-        }
-      } catch (e) {}
+
+    // Supabase: 保存/更新词条
+    async function saveSlangDict(term, zh, en) {
+      const { error } = await supabase.from("slang_terms").upsert([
+        { term, zh, en }
+      ]);
+      if (error) {
+        console.error("保存失败", error);
+        return false;
+      }
+      return true;
     }
+
+    // 初始加载
     loadSlangDict();
-    updateLangUI();
   </script>
 </body>
 </html>

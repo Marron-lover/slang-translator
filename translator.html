@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>slang/emoji translator</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 2em;
+      background-color: #fff;
+      color: #181818;
+      font-size: 1.08em;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    textarea, .output {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 1em;
+      padding: 1em;
+      border-radius: 0.5em;
+      border: 1px solid #bdbdbd;
+      margin-bottom: 1em;
+      background: #fff;
+      color: #181818;
+      resize: vertical;
+      transition: border 0.2s;
+      font-family: system-ui, sans-serif;
+    }
+    textarea:focus, .output:focus {
+      border-color: #ff8300;
+      outline: none;
+    }
+    .output {
+      white-space: pre-wrap;
+      min-height: 60px;
+      margin-bottom: 1em;
+      background: #f8f8f8;
+      border: 1px solid #d0d0d0;
+      font-size: 0.9em;
+      color: #333;
+    }
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      border-bottom: 1px dashed #666;
+      font-size: 1.1em;
+      font-weight: 500;
+      color: #444;
+    }
+    .tooltip-explain-box {
+      display: none;
+      position: absolute;
+      background-color: #f5f5f5;
+      color: #333;
+      text-align: left;
+      border-radius: 8px;
+      padding: 0.8em 1em;
+      z-index: 1000;
+      min-width: 180px;
+      max-width: 300px;
+      font-size: 0.9em;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      line-height: 1.4;
+      font-family: inherit;
+      font-weight: normal;
+      word-break: break-word;
+      /* 小三角形指示器 */
+    }
+    .tooltip-explain-box::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #f5f5f5;
+    }
+    .tooltip-explain-box.tooltip-below::after {
+      top: -12px;
+      border-top-color: transparent;
+      border-bottom-color: #f5f5f5;
+    }
+    .tooltip-explain-box .close-btn {
+      position: absolute;
+      top: 0.2em;
+      right: 0.5em;
+      background: none;
+      border: none;
+      font-size: 1.1em;
+      color: #888;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 1.5em;
+      height: 1.5em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lang-switch {
+      margin-bottom: 1em;
+      text-align: right;
+    }
+    .lang-switch button {
+      background: #ff8300;
+      border: none;
+      color: #fff;
+      padding: 0.4em 0.8em;
+      font-size: 0.9em;
+      font-weight: normal;
+      border-radius: 0.3em;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.01em;
+      box-shadow: none;
+    }
+    .lang-switch button:hover {
+      background: #e86d00;
+    }
+    form.add-term {
+      /* Remove background and shadow */
+      padding: 0;
+      border-radius: 0;
+      margin-top: 1.5em;
+      box-shadow: none;
+    }
+    form.add-term h3 {
+      margin-top: 0;
+      margin-bottom: 0.5em;
+      font-weight: 500;
+      color: #181818;
+    }
+    form.add-term label {
+      display: block;
+      margin-bottom: 0.3em;
+      font-weight: 600;
+      color: #444;
+      font-size: 0.96em;
+    }
+    form.add-term input[type="text"] {
+      width: 100%;
+      padding: 0.5em;
+      margin-bottom: 0.8em;
+      border: 1px solid #bdbdbd;
+      border-radius: 0.4em;
+      font-size: 1em;
+      box-sizing: border-box;
+      background: #fff;
+      color: #181818;
+      font-family: system-ui, sans-serif;
+    }
+    form.add-term input[type="text"]:focus {
+      border-color: #ff8300;
+      outline: none;
+    }
+    form.add-term button {
+      background: #ff8300;
+      border: none;
+      color: #fff;
+      padding: 0.6em 1.3em;
+      font-size: 1.05em;
+      border-radius: 0.5em;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+      margin-top: 0.1em;
+    }
+    form.add-term button:hover {
+      background: #e86d00;
+    }
+    .message {
+      margin-top: 0.5em;
+      font-size: 0.95em;
+      color: #1ca51c;
+    }
+
+    /* Responsive layout */
+    @media (max-width: 700px) {
+      .container {
+        max-width: 98vw;
+        padding: 0 2vw;
+      }
+      textarea, .output, form.add-term input[type="text"] {
+        font-size: 1em;
+      }
+    }
+    @media (max-width: 480px) {
+      body {
+        padding: 0.5em;
+        font-size: 1em;
+      }
+      .container {
+        max-width: 100vw;
+        padding: 0 1vw;
+      }
+      textarea, .output, form.add-term input[type="text"] {
+        font-size: 0.98em;
+        padding: 0.6em;
+      }
+      .lang-switch button, form.add-term button {
+        font-size: 1em;
+        padding: 0.5em 1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="mainTitle">网络语/Emoji 解释器</h2>
+    <div class="lang-switch">
+      <button id="langBtn">English</button>
+    </div>
+    <textarea id="input" placeholder="输入网络语句，比如：今天真是太emo了😭！"></textarea>
+    <button id="explainBtn" onclick="translateText()" style="background:#ff8300;color:#fff;font-size:1.18em;font-weight:bold;padding:0.8em 2em;border-radius:0.6em;border:none;cursor:pointer;transition:all 0.2s;box-shadow:none;margin-bottom:0.7em;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'" onmouseover="this.style.background='#e86d00'" onmouseout="this.style.background='#ff8300'">解释网络语</button>
+    <h3 id="resultTitle">翻译结果：</h3>
+    <div class="output" id="output"></div>
+    <form class="add-term" id="addTermForm">
+      <h3 id="addTermTitle">添加新词条</h3>
+      <label id="labelNewTerm" for="newTerm">新词语 (词语/符号):</label>
+      <input type="text" id="newTerm" placeholder="例如：😂" required>
+      <label id="labelZh" for="newExplanationZh">中文解释:</label>
+      <input type="text" id="newExplanationZh" placeholder="例如：笑到哭" required>
+      <label id="labelEn" for="newExplanationEn">英文解释:</label>
+      <input type="text" id="newExplanationEn" placeholder="例如：Laughing until crying" required>
+      <button type="submit" id="addTermBtn">添加词条</button>
+      <div class="message" id="addTermMessage"></div>
+    </form>
+  </div>
+
+  <script>
+    let currentLang = 'zh'; // 'zh' or 'en'
+
+    // slangDict will be loaded from localStorage if present
+    let slangDict = {
+      "😭": { zh: "伤心或笑到哭", en: "Sad or laughing until crying" },
+      "💅": { zh: "自信、不在乎他人看法", en: "Confident, don't care about others' opinions" },
+      "😈": { zh: "淘气、调皮或有点坏", en: "Naughty, mischievous or a bit bad" },
+      "💀": { zh: "笑死、非常搞笑", en: "Laughing to death, very funny" },
+      "💩": { zh: "表示糟糕、奇怪或搞笑", en: "Indicates bad, weird, or funny" },
+      "🤡": { zh: "小丑、嘲讽自己或他人", en: "Clown, mocking oneself or others" },
+      "🥶": { zh: "冷、震惊或无语", en: "Cold, shocked or speechless" },
+      "👻": { zh: "鬼才、神操作", en: "Genius, amazing operation" },
+      "🤗": { zh: "给你个拥抱", en: "Give you a hug" },
+      "🙃": { zh: "无奈、反讽", en: "Helpless, ironic" },
+      "emo": { zh: "情绪低落、心情不好", en: "Feeling down or in a bad mood" },
+      "内卷": { zh: "大家都在激烈竞争，压力大", en: "Everyone is in fierce competition, high pressure" },
+      "躺平": { zh: "不想努力，选择摆烂", en: "Don't want to work hard, choose to slack off" },
+      "摆烂": { zh: "破罐子破摔，不努力了", en: "Give up trying, stop making effort" },
+      "社死": { zh: "社交上尴尬到想隐身", en: "Socially embarrassed to want to disappear" },
+      "破防": { zh: "心理防线被攻破", en: "Psychological defense being broken" },
+      "CPU": { zh: "懵了、大脑停止运转", en: "Confused, brain stopped working" },
+      "栓Q": { zh: "Thank you的音译，常表示无语", en: "Phonetic translation of 'Thank you', often expressing speechlessness" },
+      "冤种": { zh: "倒霉蛋、委屈的人", en: "Unlucky person, someone who feels wronged" },
+      "显眼包": { zh: "喜欢引人注目的人", en: "Someone who likes to attract attention" },
+      "小镇做题家": { zh: "出身小镇、擅长考试但缺乏视野的学生", en: "Students from small towns who are good at exams but lack vision" },
+      "特种兵式旅游": { zh: "用最少时间游览最多景点", en: "Visiting as many attractions as possible in the shortest time" },
+      "i人": { zh: "内向的人", en: "Introverted person" },
+      "e人": { zh: "外向的人", en: "Extroverted person" },
+      "yyds": { zh: "永远的神（超级棒）", en: "Forever God (super awesome)" },
+      "nsdd": { zh: "你说得对（表示赞同）", en: "You are right (express agreement)" },
+      "xswl": { zh: "笑死我了（非常好笑）", en: "Laughing my head off (very funny)" },
+      "u1s1": { zh: "有一说一（实话实说）", en: "To be honest (speaking truthfully)" },
+      "bdjw": { zh: "不懂就问（不清楚就问）", en: "If you don't understand, just ask" },
+      "awsl": { zh: "啊我死了（太可爱了）", en: "Ah, I'm dead (too cute)" },
+      "zqsg": { zh: "真情实感（真诚的感情）", en: "True feelings (sincere emotions)" },
+      "dbq": { zh: "对不起", en: "Sorry" },
+      "ky": { zh: "不会看气氛（日语空気読めない）", en: "Can't read the atmosphere" },
+      "PUA": { zh: "精神控制和操控", en: "Mental manipulation and control" },
+      "草": { zh: "笑（源自'草生える'）", en: "Laugh (from Japanese 'grass growing')" },
+      "绝绝子": { zh: "太绝了、太厉害了", en: "Too amazing, too awesome" },
+      "ootd": { zh: "今日穿搭（outfit of the day）", en: "Outfit of the day" },
+      "dddd": { zh: "懂的都懂", en: "Those who know, know" },
+      "求锤得锤": { zh: "要求证据然后真的得到证据", en: "Asking for evidence and actually getting it" },
+      "真香": { zh: "之前拒绝但后来接受", en: "Previously refused but later accepted" },
+      "柠檬精": { zh: "喜欢酸别人、嫉妒的人", en: "Someone who likes to be sour/jealous of others" },
+      "工具人": { zh: "只被当作工具使用的人", en: "Someone who is only used as a tool" },
+      "精神小伙": { zh: "喜欢炫酷打扮的年轻男子", en: "Young men who like to dress flashy and cool" },
+      "集美": { zh: "姐妹（sisters的音译）", en: "Sisters (phonetic translation)" },
+      "老铁": { zh: "好朋友、老兄弟", en: "Good friend, old buddy" },
+      "安排": { zh: "处理、搞定", en: "Handle, get it done" },
+      "盘": { zh: "玩、摆弄", en: "Play with, fiddle with" },
+      "慕了": { zh: "羡慕了", en: "Envious" },
+      "酸了": { zh: "嫉妒了", en: "Jealous" },
+      "爷青回": { zh: "爷的青春回来了", en: "My youth is back" },
+      "爷青结": { zh: "爷的青春结束了", en: "My youth is over" },
+      "淦": { zh: "干的谐音，表示无奈", en: "Homophone of 'damn', expressing helplessness" },
+      "奥利给": { zh: "给力的倒过来，加油", en: "'Awesome' reversed, meaning 'come on'" },
+      "芭比Q": { zh: "完了、糟糕（barbecue音译）", en: "Finished, bad (phonetic of 'barbecue')" },
+      "双标": { zh: "双重标准", en: "Double standards" },
+      "凡尔赛": { zh: "低调炫富", en: "Humble bragging" },
+      "爬山": { zh: "约会、谈恋爱", en: "Dating, being in a relationship" },
+      "搞钱": { zh: "赚钱、工作", en: "Making money, working" },
+      "上班人": { zh: "打工人、上班族", en: "Office worker, working person" },
+      "怼": { zh: "顶撞、回嘴", en: "Talk back, retort" },
+      "马甲": { zh: "用多个小号发帖或说话", en: "Using multiple accounts to post or talk" },
+      "灌水": { zh: "发很多没内容的帖子", en: "Posting many meaningless posts" },
+      "233": { zh: "大笑", en: "Laughing loudly" },
+      "666": { zh: "厉害、牛逼", en: "Awesome, amazing" },
+      "520": { zh: "我爱你", en: "I love you" },
+      "886": { zh: "拜拜了", en: "Bye bye" },
+      "3Q": { zh: "谢谢（Thank you）", en: "Thank you" },
+      "GG": { zh: "哥哥或完了（Good Game）", en: "Brother or game over" },
+      "MM": { zh: "美眉、美女", en: "Pretty girl, beauty" }
+    };
+
+    // 文本资源
+    const i18n = {
+      zh: {
+        mainTitle: "网络语/Emoji 解释器",
+        langBtn: "English",
+        inputPlaceholder: "输入网络语句，比如：今天真是太emo了😭！",
+        explainBtn: "解释网络语",
+        resultTitle: "翻译结果：",
+        addTermTitle: "添加新词条",
+        labelNewTerm: "新词语 (词语/符号):",
+        labelZh: "中文解释:",
+        labelEn: "英文解释:",
+        addTermBtn: "添加词条",
+        placeholderNewTerm: "例如：😂",
+        placeholderZh: "例如：笑到哭",
+        placeholderEn: "例如：Laughing until crying",
+        addTermMsgOK: term => `词条 "${term}" 添加成功！`,
+        addTermMsgEmptyTerm: "请输入新词语。",
+        addTermMsgEmptyZh: "请输入中文解释。",
+        addTermMsgEmptyEn: "请输入英文解释。"
+      },
+      en: {
+        mainTitle: "Slang/Emoji Explainer",
+        langBtn: "中文",
+        inputPlaceholder: "Enter sentences with slang or emoji, e.g.: Today I'm so emo😭!",
+        explainBtn: "Explain Slang",
+        resultTitle: "Explanation:",
+        addTermTitle: "Add New Term",
+        labelNewTerm: "New Term (word/symbol):",
+        labelZh: "Chinese Explanation:",
+        labelEn: "English Explanation:",
+        addTermBtn: "Add Term",
+        placeholderNewTerm: "e.g.: 😂",
+        placeholderZh: "e.g.: 笑到哭",
+        placeholderEn: "e.g.: Laughing until crying",
+        addTermMsgOK: term => `Term "${term}" added successfully!`,
+        addTermMsgEmptyTerm: "Please enter a new term.",
+        addTermMsgEmptyZh: "Please enter the Chinese explanation.",
+        addTermMsgEmptyEn: "Please enter the English explanation."
+      }
+    };
+
+    function updateLangUI() {
+      const lang = currentLang;
+      document.getElementById('mainTitle').textContent = i18n[lang].mainTitle;
+      document.getElementById('langBtn').textContent = i18n[lang].langBtn;
+      document.getElementById('input').placeholder = i18n[lang].inputPlaceholder;
+      document.getElementById('explainBtn').textContent = i18n[lang].explainBtn;
+      document.getElementById('resultTitle').textContent = i18n[lang].resultTitle;
+      document.getElementById('addTermTitle').textContent = i18n[lang].addTermTitle;
+      document.getElementById('labelNewTerm').textContent = i18n[lang].labelNewTerm;
+      document.getElementById('labelZh').textContent = i18n[lang].labelZh;
+      document.getElementById('labelEn').textContent = i18n[lang].labelEn;
+      document.getElementById('addTermBtn').textContent = i18n[lang].addTermBtn;
+      document.getElementById('newTerm').placeholder = i18n[lang].placeholderNewTerm;
+      document.getElementById('newExplanationZh').placeholder = i18n[lang].placeholderZh;
+      document.getElementById('newExplanationEn').placeholder = i18n[lang].placeholderEn;
+      // Also clear addTermMessage
+      document.getElementById('addTermMessage').textContent = '';
+    }
+
+    const langBtn = document.getElementById('langBtn');
+    langBtn.addEventListener('click', () => {
+      if (currentLang === 'zh') {
+        currentLang = 'en';
+      } else {
+        currentLang = 'zh';
+      }
+      updateLangUI();
+      translateText();
+    });
+
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function translateText() {
+      const inputText = document.getElementById("input").value;
+      // 排序词条，长的优先
+      const keys = Object.keys(slangDict).sort((a, b) => b.length - a.length);
+      let result = "";
+      let i = 0;
+      while (i < inputText.length) {
+        let matched = false;
+        for (const term of keys) {
+          const inputSubstr = inputText.substr(i, term.length);
+          if (inputSubstr.toLowerCase() === term.toLowerCase()) {
+            const explanation = slangDict[term][currentLang];
+            // 确保HTML安全的解释文本
+            const safeExplanation = explanation.replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+            // 点击弹窗解释
+            const tooltipHTML = `<span class='tooltip' data-explanation="${encodeURIComponent(explanation)}" tabindex="0">${inputSubstr}</span>`;
+            result += tooltipHTML;
+            i += term.length;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          result += inputText[i];
+          i++;
+        }
+      }
+      document.getElementById("output").innerHTML = result;
+      // 绑定点击事件
+      bindTooltipClick();
+    }
+
+    // 弹窗解释框
+    function showExplainBox(explanation, anchorElem) {
+      // 移除已有弹窗
+      removeExplainBox();
+      
+      const box = document.createElement('div');
+      box.className = 'tooltip-explain-box';
+      box.innerHTML = `<button class="close-btn" title="关闭" aria-label="关闭">&times;</button><div style="padding-top:1.2em;">${explanation}</div>`;
+      document.body.appendChild(box);
+      
+      // 获取锚点元素的位置信息
+      const rect = anchorElem.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+      
+      // 临时显示以获取弹窗尺寸
+      box.style.visibility = 'hidden';
+      box.style.display = 'block';
+      const boxRect = box.getBoundingClientRect();
+      
+      // 计算弹窗位置（显示在元素上方）
+      let left = rect.left + scrollLeft + (rect.width / 2) - (boxRect.width / 2);
+      let top = rect.top + scrollTop - boxRect.height - 8; // 8px 间距
+      
+      // 确保弹窗不会超出视窗边界
+      const viewportWidth = window.innerWidth;
+      const margin = 10;
+      
+      if (left < margin) {
+        left = margin;
+      } else if (left + boxRect.width > viewportWidth - margin) {
+        left = viewportWidth - boxRect.width - margin;
+      }
+      
+      // 如果上方空间不够，显示在下方
+      if (top < scrollTop + margin) {
+        top = rect.bottom + scrollTop + 8;
+        // 移除下三角形，添加上三角形
+        box.style.setProperty('--arrow-direction', 'up');
+        box.classList.add('tooltip-below');
+      }
+      
+      // 设置最终位置并显示
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+      box.style.visibility = 'visible';
+      
+      // 关闭事件
+      const closeBtn = box.querySelector('.close-btn');
+      closeBtn.addEventListener('click', removeExplainBox);
+      
+      // 点击外部关闭
+      function clickOutsideHandler(e) {
+        if (!box.contains(e.target) && !anchorElem.contains(e.target)) {
+          removeExplainBox();
+        }
+      }
+      
+      // ESC关闭
+      function escHandler(e) {
+        if (e.key === 'Escape') {
+          removeExplainBox();
+        }
+      }
+      
+      // 延迟添加事件监听器，避免立即触发
+      setTimeout(() => {
+        document.addEventListener('click', clickOutsideHandler);
+        document.addEventListener('keydown', escHandler);
+      }, 100);
+      
+      // 存储移除函数以便清理
+      box.removeHandler = function() {
+        document.removeEventListener('click', clickOutsideHandler);
+        document.removeEventListener('keydown', escHandler);
+      };
+    }
+
+    function removeExplainBox() {
+      const box = document.querySelector('.tooltip-explain-box');
+      if (box) {
+        if (box.removeHandler) {
+          box.removeHandler();
+        }
+        if (box.parentNode) {
+          box.parentNode.removeChild(box);
+        }
+      }
+    }
+
+    function bindTooltipClick() {
+      // 先移除之前的事件监听器，避免重复绑定
+      const tooltips = document.querySelectorAll('#output .tooltip');
+      tooltips.forEach(el => {
+        // 移除旧的事件监听器
+        el.onclick = null;
+        el.onkeydown = null;
+        
+        // 添加新的事件监听器
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const explanation = decodeURIComponent(this.getAttribute('data-explanation'));
+          showExplainBox(explanation, this);
+        });
+        
+        // 键盘可访问
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.click();
+          }
+        });
+      });
+    }
+
+    // Handle add term form submission
+    const addTermForm = document.getElementById('addTermForm');
+    const addTermMessage = document.getElementById('addTermMessage');
+
+    addTermForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const lang = currentLang;
+      const newTerm = document.getElementById('newTerm').value.trim();
+      const newExplanationZh = document.getElementById('newExplanationZh').value.trim();
+      const newExplanationEn = document.getElementById('newExplanationEn').value.trim();
+
+      if (!newTerm) {
+        addTermMessage.style.color = 'red';
+        addTermMessage.textContent = i18n[lang].addTermMsgEmptyTerm;
+        return;
+      }
+      if (!newExplanationZh) {
+        addTermMessage.style.color = 'red';
+        addTermMessage.textContent = i18n[lang].addTermMsgEmptyZh;
+        return;
+      }
+      if (!newExplanationEn) {
+        addTermMessage.style.color = 'red';
+        addTermMessage.textContent = i18n[lang].addTermMsgEmptyEn;
+        return;
+      }
+
+      // Add or update the term in slangDict
+      slangDict[newTerm] = { zh: newExplanationZh, en: newExplanationEn };
+      saveSlangDict();
+
+      addTermMessage.style.color = '#1ca51c';
+      addTermMessage.textContent = i18n[lang].addTermMsgOK(newTerm);
+
+      // Clear inputs
+      addTermForm.reset();
+
+      // Re-translate text to include new term if present
+      translateText();
+    });
+
+    // localStorage 支持
+    function saveSlangDict() {
+      try {
+        localStorage.setItem('slangDict', JSON.stringify(slangDict));
+      } catch (e) {}
+    }
+    function loadSlangDict() {
+      try {
+        const data = localStorage.getItem('slangDict');
+        if (data) {
+          const userDict = JSON.parse(data);
+          if (userDict && typeof userDict === 'object') {
+            for (const k in userDict) {
+              slangDict[k] = userDict[k];
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    loadSlangDict();
+
+    // 语音输入功能代码已移除
+    
+    // 语言切换时同步语音语言（语音功能已移除）
+
+    // 初始UI语言
+    updateLangUI();
+  </script>
+</body>
+</html>

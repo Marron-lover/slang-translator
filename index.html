@@ -596,7 +596,7 @@
         return;
       }
       data.forEach(item => {
-        slangDict[item.term] = { zh: item.zh, en: item.en };
+        slangDict[item.term.toLowerCase()] = { zh: item.zh, en: item.en };
       });
       updateLangUI();
       translateText();
